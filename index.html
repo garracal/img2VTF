@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>img2VTF – image to TF2 spray (VTF) converter</title>
+<style>
+:root{--bg:#f4f4f2;--card:#fff;--tx:#1d1d1b;--mu:#6b6b66;--ln:#d8d8d2;--ac:#B8383B;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#1b1b1a;--card:#262624;--tx:#ececE8;--mu:#9a9a94;--ln:#3a3a37;--ac:#B8383B;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif}
+main{max-width:1100px;margin:auto;padding:16px;display:grid;grid-template-columns:240px 1fr 260px;gap:12px}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+h1{grid-column:1/-1;font-size:20px;margin:0}h1 small{font-weight:400;color:var(--mu);font-size:13px;margin-left:8px}
+section{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:12px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);margin:0 0 8px}
+label{display:block;margin:8px 0 2px;color:var(--mu);font-size:12px}label.c{display:flex;gap:6px;align-items:center;color:var(--tx);font-size:13px}
+select,input[type=number],input[type=text]{width:100%;padding:6px;border:1px solid var(--ln);border-radius:5px;background:var(--bg);color:var(--tx)}
+button{padding:7px 12px;border:1px solid var(--ln);border-radius:5px;background:var(--bg);color:var(--tx);cursor:pointer}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac);width:100%;margin-top:12px;padding:10px}
+#drop{border:2px dashed var(--ln);border-radius:8px;padding:16px;text-align:center;color:var(--mu);cursor:pointer;margin-bottom:8px}
+#drop.on{border-color:var(--ac);color:var(--ac)}
+#list{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+#list li{padding:6px 8px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;gap:6px}
+#list li.sel{background:var(--ac);color:#fff}#list li span{opacity:.7;cursor:pointer}
+#pv{width:100%;height:auto;border-radius:6px;display:block;background:repeating-conic-gradient(#555 0 25%,#777 0 50%) 0 0/20px 20px;image-rendering:pixelated}
+#cw{position:relative;touch-action:none;cursor:move;user-select:none}#tbox{position:absolute;border:2px solid var(--ac);box-sizing:border-box;pointer-events:none}
+#tbox i{position:absolute;width:12px;height:12px;background:#fff;border:2px solid var(--ac);border-radius:2px;pointer-events:auto;box-sizing:border-box}
+#tbox i[data-c=nw]{left:-7px;top:-7px;cursor:nwse-resize}#tbox i[data-c=ne]{right:-7px;top:-7px;cursor:nesw-resize}#tbox i[data-c=sw]{left:-7px;bottom:-7px;cursor:nesw-resize}#tbox i[data-c=se]{right:-7px;bottom:-7px;cursor:nwse-resize}
+.tile{width:96px;text-align:center;font-size:12px}.tile canvas{image-rendering:pixelated;cursor:pointer;background:repeating-conic-gradient(#555 0 25%,#777 0 50%) 0 0/10px 10px;border-radius:4px;display:block;margin:0 auto 4px}.tile button{width:100%;margin-top:3px;padding:3px;font-size:11px}
+.bad{color:#e03636;font-weight:600}
+#help{width:24px;height:24px;padding:0;border-radius:50%;margin-left:10px;font-weight:700;vertical-align:middle}
+#gv,#gh{position:absolute;background:var(--ac);pointer-events:none}#gv{left:50%;top:0;bottom:0;width:1px}#gh{top:50%;left:0;right:0;height:1px}
+#info{text-align:center;margin-top:8px}#note{color:var(--ac);text-align:center;font-size:12px;min-height:16px}
+</style></head><body><main>
+<h1>img2VTF<small>Image &amp; GIF → Team Fortress 2 spray converter</small><button id="help" type="button" title="How to use" aria-expanded="false">?</button></h1>
+<section style="grid-column:1/-1"><p style="margin:0">Turn any image or animated GIF into a TF2 spray (.vtf). Everything runs in your browser, so your files are never uploaded.</p>
+<div id="helpbox" hidden><ol style="margin:10px 0 0;padding-left:20px;color:var(--mu);line-height:1.6"><li>Drop in one or more images (PNG, JPG, GIF, WebP and more).</li><li>Drag the image to position it, and use its corner handles to resize it.</li><li>Click <b>Export VTF</b>.</li><li>In TF2, open <b>Options → Multiplayer → Import Spray</b> and choose the .vtf file.</li></ol>
+<p style="margin:8px 0 0;color:var(--mu);font-size:12px">TF2 sprays are limited to 512 KB; img2VTF shrinks files to fit automatically. Animated GIFs use up to 5 frames.</p></div></section>
+<section><h2>Images</h2>
+<div id="drop">Drop images here<br>or click to browse</div><input id="file" type="file" accept="image/*" multiple hidden>
+<ul id="list"></ul>
+<label>Spray name (selected)</label><input id="name" type="text"></section>
+<section><h2>Preview (decoded from the real VTF data)</h2><div id="cw"><canvas id="pv" width="256" height="256"></canvas><div id="gv" hidden></div><div id="gh" hidden></div><div id="tbox" hidden><i data-c="nw"></i><i data-c="ne"></i><i data-c="sw"></i><i data-c="se"></i></div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><button id="tffill">Fill canvas</button><button id="tfreset">Reset position</button><label class="c" style="margin:0"><input id="tftrim" type="checkbox">Trim transparent borders</label></div>
+<div style="color:var(--mu);font-size:12px;margin-top:6px">Drag the image to move it; it snaps to the centre (hold Alt to turn snapping off). Drag a corner handle to resize it.</div>
+<label>Preview mip level</label><select id="plevel"></select>
+<div id="info">Add an image to begin.</div><div id="note"></div></section>
+<section><h2>Settings</h2>
+<label>Width × Height</label><div style="display:flex;gap:6px"><select id="w"><option>32<option>64<option>128<option>256<option selected>512<option>1024</select><select id="h"><option>32<option>64<option>128<option>256<option selected>512<option>1024</select></div>
+<label>Layout</label><select id="layout"><option value="fit">Fit (pad with transparency)<option value="crop">Crop to fill<option value="stretch">Stretch</select>
+<label>Format</label><select id="fmt"><option value="auto">Auto (DXT1 / DXT5)<option value="13">DXT1 (opaque)<option value="ck">DXT1 + 1-bit alpha (half the size of DXT5)<option value="15">DXT5 (smooth alpha)</select>
+<label class="c"><input id="auto" type="checkbox" checked>Auto-shrink to fit size limit</label>
+<label>Size limit (KB)</label><input id="lim" type="number" value="512" min="16" step="16">
+<label class="c"><input id="mips" type="checkbox">Generate mipmaps (enables per-level images)</label>
+<button class="p" id="go">Export VTF</button><button id="zip" style="width:100%;margin-top:6px">Export ZIP (VTF + VMT)</button></section>
+<section id="mipsec" hidden style="grid-column:1/-1"><h2>Mipmap levels</h2>
+<p style="margin:0 0 10px;color:var(--mu);font-size:12px">Level 0 is your main image and shows up close. Each smaller level shows from farther away. Replace a level with any image (or an animated GIF) to change what players see at that distance. Click a tile to preview it.</p>
+<div id="mrows" style="display:flex;gap:12px;flex-wrap:wrap"></div></section><input id="mipfile" type="file" accept="image/*" hidden>
+<footer style="grid-column:1/-1;color:var(--mu);font-size:12px;text-align:center">img2VTF is a fan-made tool and isn’t affiliated with Valve. Team Fortress 2 is a trademark of Valve Corporation.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id),LIM=512000,MAXF=5;let items=[],sel=-1,gen=0,timer=null;
+const cfg=()=>({w:+$('w').value,h:+$('h').value,layout:$('layout').value,fmt:$('fmt').value,mips:$('mips').checked,limit:Math.max(16,+$('lim').value||512)*1000,auto:$('auto').checked,maxf:MAXF});
+const clean=n=>(n.toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9_]+/g,'_').replace(/^_|_$/g,'')||'spray').slice(0,48);
+
+/* ---------- loading ---------- */
+async function loadFrames(file){
+ if(window.ImageDecoder&&/gif|webp|png/.test(file.type)){try{
+  const d=new ImageDecoder({data:await file.arrayBuffer(),type:file.type});await d.tracks.ready;await d.completed;const n=d.tracks.selectedTrack.frameCount;
+  if(n>1){const k=Math.min(n,MAXF),out=[];for(let i=0;i<k;i++){const{image}=await d.decode({frameIndex:Math.round(i*(n-1)/Math.max(1,k-1))});out.push(await createImageBitmap(image));image.close()}d.close();return out}
+  d.close();
+ }catch(e){console.warn('Animated decode failed, using first frame:',e)}}
+ return[await createImageBitmap(file)]}
+function lay(b,W,H,m,tf,bx){const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';
+ const sx=bx?bx.x:0,sy=bx?bx.y:0,w=bx?bx.w:b.width,h=bx?bx.h:b.height;
+ if(tf){x.translate(W/2+tf.x*W/100,H/2+tf.y*H/100);x.scale(tf.zoom,tf.zoom);x.translate(-W/2,-H/2)}
+ if(m==='stretch')x.drawImage(b,sx,sy,w,h,0,0,W,H);
+ else if(m==='crop'){const k=Math.max(W/w,H/h),sw=W/k,sh=H/k;x.drawImage(b,sx+(w-sw)/2,sy+(h-sh)/2,sw,sh,0,0,W,H)}
+ else{const k=Math.min(W/w,H/h),nw=Math.max(1,Math.round(w*k)),nh=Math.max(1,Math.round(h*k));x.drawImage(b,sx,sy,w,h,(W-nw)>>1,(H-nh)>>1,nw,nh)}
+ return x.getImageData(0,0,W,H)}
+function trimBox(fr){const W=fr[0].width,H=fr[0].height,k=Math.min(1,256/Math.max(W,H)),w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k)),c=document.createElement('canvas');c.width=w;c.height=h;
+ const x=c.getContext('2d',{willReadFrequently:true});let x0=1e9,y0=1e9,x1=-1,y1=-1;
+ for(const f of fr){x.clearRect(0,0,w,h);x.drawImage(f,0,0,w,h);const d=x.getImageData(0,0,w,h).data;
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(d[(j*w+i)*4+3]>8){if(i<x0)x0=i;if(i>x1)x1=i;if(j<y0)y0=j;if(j>y1)y1=j}}
+ if(x1<0)return null;const ax=Math.max(0,Math.floor(x0/k)),ay=Math.max(0,Math.floor(y0/k));
+ return{x:ax,y:ay,w:Math.min(W,Math.ceil((x1+1)/k))-ax,h:Math.min(H,Math.ceil((y1+1)/k))-ay}}
+
+// drag a corner handle: uniform scale about the opposite corner. r = box as fractions of the canvas
+function cornerScale(r,c,px,py,z0){const w=c.includes('w'),n=c.includes('n'),ax=w?r.l+r.w:r.l,ay=n?r.t+r.h:r.t,vx=(w?r.l:r.l+r.w)-ax,vy=(n?r.t:r.t+r.h)-ay,
+ f=Math.max(.1/z0,Math.min(10/z0,((px-ax)*vx+(py-ay)*vy)/(vx*vx+vy*vy))),cx=ax+(r.l+r.w/2-ax)*f,cy=ay+(r.t+r.h/2-ay)*f;
+ return{zoom:z0*f,x:(cx-.5)*100,y:(cy-.5)*100}}
+
+/* ---------- DXT encoder (principal-axis endpoint fit) ---------- */
+const q565=c=>(Math.round(c[0]*31/255)<<11)|(Math.round(c[1]*63/255)<<5)|Math.round(c[2]*31/255);
+const un565=c=>{const r=c>>11&31,g=c>>5&63,b=c&31;return[r<<3|r>>2,g<<2|g>>4,b<<3|b>>2]};
+function encC(px,al,mask,ck,out,o){
+ const w=new Float32Array(16);let n=0;for(let i=0;i<16;i++){w[i]=mask&&(ck?al[i]<128:al[i]===0)?0:1;n+=w[i]}
+ if(!n){w.fill(1);n=16}
+ const mu=[0,0,0];for(let i=0;i<16;i++)for(let k=0;k<3;k++)mu[k]+=w[i]*px[i*3+k]/n;
+ const c=[0,0,0,0,0,0];
+ for(let i=0;i<16;i++){if(!w[i])continue;const x=px[i*3]-mu[0],y=px[i*3+1]-mu[1],z=px[i*3+2]-mu[2];c[0]+=x*x;c[1]+=x*y;c[2]+=x*z;c[3]+=y*y;c[4]+=y*z;c[5]+=z*z}
+ let v=[1,1,1];
+ for(let t=0;t<4;t++){const a=[c[0]*v[0]+c[1]*v[1]+c[2]*v[2],c[1]*v[0]+c[3]*v[1]+c[4]*v[2],c[2]*v[0]+c[4]*v[1]+c[5]*v[2]],l=Math.hypot(...a);v=l>1e-6?a.map(u=>u/l):[.577,.577,.577]}
+ let lo=1e9,hi=-1e9;
+ for(let i=0;i<16;i++){if(!w[i])continue;const t=(px[i*3]-mu[0])*v[0]+(px[i*3+1]-mu[1])*v[1]+(px[i*3+2]-mu[2])*v[2];lo=Math.min(lo,t);hi=Math.max(hi,t)}
+ const ins=(hi-lo)/16;lo+=ins;hi-=ins;
+ const E=t=>[0,1,2].map(k=>Math.min(255,Math.max(0,mu[k]+v[k]*t)));
+ let c0=q565(E(hi)),c1=q565(E(lo)),tr=false;if(ck)for(let i=0;i<16;i++)if(al[i]<128)tr=true;
+ if(tr?c0>c1:c0<c1)[c0,c1]=[c1,c0];
+ const p0=un565(c0),p1=un565(c1),pal=tr?[p0,p1,p0.map((t,k)=>(t+p1[k])/2)]:[p0,p1,p0.map((t,k)=>(2*t+p1[k])/3),p0.map((t,k)=>(t+2*p1[k])/3)];
+ let bits=0;
+ for(let i=0;i<16;i++){let bd=1e18,bi=0;for(let j=0;j<pal.length;j++){const d=(px[i*3]-pal[j][0])**2+(px[i*3+1]-pal[j][1])**2+(px[i*3+2]-pal[j][2])**2;if(d<bd){bd=d;bi=j}}if(tr&&al[i]<128)bi=3;bits|=bi<<(2*i)}
+ out[o]=c0&255;out[o+1]=c0>>8;out[o+2]=c1&255;out[o+3]=c1>>8;new DataView(out.buffer).setUint32(out.byteOffset+o+4,bits>>>0,true)}
+function encA(al,out,o){
+ let a0=0,a1=255;for(let i=0;i<16;i++){a0=Math.max(a0,al[i]);a1=Math.min(a1,al[i])}
+ const p=[a0,a1];for(let k=2;k<8;k++)p.push(((8-k)*a0+(k-1)*a1)/7);
+ let lo=0,hi=0;
+ for(let i=0;i<16;i++){let bd=1e9,bi=0;for(let j=0;j<8;j++){const d=Math.abs(al[i]-p[j]);if(d<bd){bd=d;bi=j}}
+  if(i<8)lo|=bi<<(3*i);else hi|=bi<<(3*(i-8))}
+ out[o]=a0;out[o+1]=a1;for(let k=0;k<3;k++){out[o+2+k]=lo>>(8*k)&255;out[o+5+k]=hi>>(8*k)&255}}
+function encode(d,w,h,fmt,ck){
+ const bs=fmt===13?8:16,nx=Math.max(1,w>>2),ny=Math.max(1,h>>2),out=new Uint8Array(nx*ny*bs),px=new Float32Array(48),al=new Float32Array(16);
+ for(let by=0;by<ny;by++)for(let bx=0;bx<nx;bx++){
+  for(let i=0;i<16;i++){const o=(Math.min(by*4+(i>>2),h-1)*w+Math.min(bx*4+(i&3),w-1))*4;px[i*3]=d[o];px[i*3+1]=d[o+1];px[i*3+2]=d[o+2];al[i]=d[o+3]}
+  const off=(by*nx+bx)*bs;if(fmt===15)encA(al,out,off);encC(px,al,fmt===15||ck,ck,out,off+bs-8)}
+ return out}
+function decode(buf,fmt,w,h){
+ const nx=Math.max(1,w>>2),ny=Math.max(1,h>>2),bs=fmt===13?8:16,img=new ImageData(w,h),dv=new DataView(buf.buffer,buf.byteOffset);
+ for(let b=0;b<nx*ny;b++){
+  const o=b*bs,co=o+bs-8,c0=dv.getUint16(co,true),c1=dv.getUint16(co+2,true),bits=dv.getUint32(co+4,true),p0=un565(c0),p1=un565(c1);
+  const t3=fmt===13&&c0<=c1,pal=t3?[p0,p1,p0.map((t,k)=>(t+p1[k])/2),[0,0,0]]:[p0,p1,p0.map((t,k)=>(2*t+p1[k])/3),p0.map((t,k)=>(t+2*p1[k])/3)];
+  let ap=null,ab=0,ah=0;
+  if(fmt===15){const a0=buf[o],a1=buf[o+1];ap=[a0,a1];for(let k=2;k<8;k++)ap.push(((8-k)*a0+(k-1)*a1)/7);ab=buf[o+2]|buf[o+3]<<8|buf[o+4]<<16;ah=buf[o+5]|buf[o+6]<<8|buf[o+7]<<16}
+  const bx=b%nx,by=b/nx|0;
+  for(let i=0;i<16;i++){const yy=by*4+(i>>2),xx=bx*4+(i&3);if(yy>=h||xx>=w)continue;const p=pal[bits>>(2*i)&3],q=(yy*w+xx)*4;
+   img.data[q]=p[0];img.data[q+1]=p[1];img.data[q+2]=p[2];
+   img.data[q+3]=ap?ap[(i<8?ab>>(3*i):ah>>(3*(i-8)))&7]:(t3&&(bits>>(2*i)&3)===3?0:255)}}
+ return img}
+
+/* ---------- VTF build ---------- */
+function down(img,w,h){const a=document.createElement('canvas');a.width=img.width;a.height=img.height;a.getContext('2d').putImageData(img,0,0);
+ const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';x.drawImage(a,0,0,w,h);return x.getImageData(0,0,w,h)}
+const lb=(w,h,f)=>Math.max(1,w>>2)*Math.max(1,h>>2)*(f===13?8:16);
+async function build(it,s){
+ if(!it.frames)it.frames=await loadFrames(it.file);
+ let fr=it.frames;
+ if(fr.length>s.maxf)fr=Array.from({length:s.maxf},(_,i)=>fr[Math.round(i*(fr.length-1)/Math.max(1,s.maxf-1))]);
+ const ov=s.mips?it.ov:{},tf=it.tf||{zoom:1,x:0,y:0},bx=tf.trim?trimBox(fr):null;it.bx=bx;
+ let W=s.w,H=s.h,L,fmt,total,mips,ck=false,tw,th,hb,M;const notes=[];
+ for(;;){
+  M=Math.max(W,H);mips=s.mips?Math.floor(Math.log2(M))+1:1;
+  let a=fr.map(f=>lay(f,W,H,s.layout,tf,bx));L=[a];
+  for(let m=1;m<mips;m++){const w=Math.max(1,W>>m),h=Math.max(1,H>>m),o=ov[Math.max(w,h)];a=a.map(im=>down(im,w,h));
+   L.push(o?fr.map((_,i)=>lay(o.frames[i%o.frames.length],w,h,s.layout)):a)}
+  const ha=L.some(lv=>lv.some(im=>{for(let i=3;i<im.data.length;i+=4)if(im.data[i]<255)return true}));
+  ck=s.fmt==='ck';fmt=ck?13:s.fmt==='auto'?(ha?15:13):+s.fmt;
+  tw=M<=16?W:Math.max(1,Math.round(W*16/M));th=M<=16?H:Math.max(1,Math.round(H*16/M));
+  hb=80+lb(tw,th,13);total=hb;for(let m=0;m<mips;m++)total+=fr.length*lb(W>>m,H>>m,fmt);
+  if(total<=s.limit||!s.auto||M<=32)break;
+  W=Math.max(4,W>>1);H=Math.max(4,H>>1)}
+ const have=new Set(Array.from({length:mips-1},(_,m)=>Math.max(1,M>>(m+1)))),lost=Object.keys(ov).filter(k=>!have.has(+k));
+ if(lost.length)notes.push(`Custom images at ${lost.join(', ')} px were ignored: with ${W}×${H} as the top level they are not a smaller mip. Raise the size limit or turn off auto-shrink to keep a larger top level.`);
+ if(W!==s.w||H!==s.h)notes.push(`Shrunk to ${W}×${H} to fit the limit.`);
+ if(M>512)notes.push('TF2 reportedly caps sprays at 512×512; larger sizes are untested.');
+ if(total>s.limit)notes.push(`WARNING: ${(total/1024)|0} KB exceeds the ${(s.limit/1000)|0} KB limit; TF2 will likely ignore it.`);
+ const flat=im=>{const d=im.data;for(let i=0;i<d.length;i+=4){const a=d[i+3]/255;d[i]*=a;d[i+1]*=a;d[i+2]*=a;d[i+3]=255}};
+ if(fmt===13&&!ck)L.forEach(lv=>lv.forEach(flat));
+ const data=L.map(lv=>lv.map(im=>encode(im.data,im.width,im.height,fmt,ck))),prev=data.map((lv,m)=>lv.map(d=>decode(d,fmt,L[m][0].width,L[m][0].height)));
+ const ti=lay(fr[0],tw,th,s.layout,tf,bx);flat(ti);const td=encode(ti.data,tw,th,13,false);
+ let r=0,g=0,b=0;const np=ti.data.length/4;for(let i=0;i<ti.data.length;i+=4){r+=ti.data[i];g+=ti.data[i+1];b+=ti.data[i+2]}
+ const out=new Uint8Array(total),dv=new DataView(out.buffer);
+ out.set([86,84,70,0]);dv.setUint32(4,7,true);dv.setUint32(8,2,true);dv.setUint32(12,80,true);
+ dv.setUint16(16,W,true);dv.setUint16(18,H,true);dv.setUint32(20,0x4|0x8|(mips===1?0x300:0)|(fmt===13?(ck?0x1000:0):0x2000),true);
+ dv.setUint16(24,fr.length,true);[r,g,b].forEach((c,k)=>dv.setFloat32(32+4*k,(c/np/255)**2.2,true));
+ dv.setFloat32(48,1,true);dv.setUint32(52,fmt,true);out[56]=mips;dv.setInt32(57,13,true);out[61]=tw;out[62]=th;dv.setUint16(63,1,true);
+ out.set(td,80);let p=hb;for(let m=mips-1;m>=0;m--)for(const d of data[m]){out.set(d,p);p+=d.length}
+ return{vtf:out,prev,W,H,fmt,ck,n:fr.length,notes,mips}}
+const vmt=n=>`"LightmappedGeneric"\n{\n\t"$basetexture" "vgui/logos/${n}"\n\t"$vertexcolor" 1\n\t"$vertexalpha" 1\n\t"$translucent" 1\n\t"$decal" 1\n\t"$decalscale" 0.250\n}\n`;
+
+/* ---------- ZIP (store) ---------- */
+const CT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^c>>>1:c>>>1;t.push(c>>>0)}return t})();
+const crc=d=>{let c=~0;for(const x of d)c=CT[(c^x)&255]^c>>>8;return~c>>>0};
+function zip(files){
+ const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+ for(const f of files){const nm=enc.encode(f.name),c=crc(f.data),h=new DataView(new ArrayBuffer(30));
+  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint32(14,c,true);h.setUint32(18,f.data.length,true);h.setUint32(22,f.data.length,true);h.setUint16(26,nm.length,true);
+  parts.push(h,nm,f.data);
+  const e=new DataView(new ArrayBuffer(46));e.setUint32(0,0x02014b50,true);e.setUint16(4,20,true);e.setUint16(6,20,true);e.setUint32(16,c,true);e.setUint32(20,f.data.length,true);e.setUint32(24,f.data.length,true);e.setUint16(28,nm.length,true);e.setUint32(42,off,true);
+  cen.push(e,nm);off+=30+nm.length+f.data.length}
+ const cs=cen.reduce((a,x)=>a+(x.byteLength),0),end=new DataView(new ArrayBuffer(22));
+ end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cs,true);end.setUint32(16,off,true);
+ return new Blob([...parts,...cen,end],{type:'application/zip'})}
+
+/* ---------- UI ---------- */
+function renderList(){const ul=$('list');ul.innerHTML='';
+ items.forEach((it,i)=>{const li=document.createElement('li');li.className=i===sel?'sel':'';li.textContent=it.name;
+  const x=document.createElement('span');x.textContent='✕';x.onclick=e=>{e.stopPropagation();items.splice(i,1);sel=Math.min(sel,items.length-1);renderList();pick(sel)};
+  li.appendChild(x);li.onclick=()=>pick(i);ul.appendChild(li)})}
+function pick(i){sel=i;renderList();$('name').value=i>=0?items[i].name:'';last=null;if(i>=0)writeTf(items[i]);if(i<0){$('info').textContent='Add an image to begin.';$('note').textContent='';clearInterval(timer);$('pv').getContext('2d').clearRect(0,0,999,999)}else schedule()}
+let deb;function schedule(){clearTimeout(deb);deb=setTimeout(preview,200)}
+let last=null,pendL=0;
+function show(m){if(!last)return;const fs=last.prev[m],cv=$('pv');cv.width=fs[0].width;cv.height=fs[0].height;const x=cv.getContext('2d');let f=0;clearInterval(timer);
+ const draw=()=>{x.putImageData(fs[f],0,0);f=(f+1)%fs.length};draw();if(fs.length>1)timer=setInterval(draw,100)}
+const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b};
+function tiles(r,it){const box=$('mrows');box.innerHTML='';
+ for(let m=1;m<r.mips;m++){const w=Math.max(1,r.W>>m),h=Math.max(1,r.H>>m),l=Math.max(w,h);if(l<16)break;
+  const t=document.createElement('div'),c=document.createElement('canvas'),o=it.ov[l],k=80/l;t.className='tile';
+  c.width=w;c.height=h;c.style.width=w*k+'px';c.style.height=h*k+'px';c.getContext('2d').putImageData(r.prev[m][0],0,0);c.onclick=()=>{$('plevel').value=m;show(m)};
+  t.append(c,`${w}×${h}${o?' · custom':''}`,mk('Replace…',()=>{pendL=l;$('mipfile').click()}));
+  if(o)t.append(mk('Reset',()=>{delete it.ov[l];schedule()}));box.appendChild(t)}}
+$('mipfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!items[sel])return;
+ try{items[sel].ov[pendL]={frames:await loadFrames(f)};schedule()}catch(err){alert('Couldn’t read that image: '+err.message)}};
+$('plevel').onchange=()=>show(+$('plevel').value);
+async function preview(){
+ const it=items[sel];if(!it)return;const g=++gen,s=cfg();$('info').textContent='Rendering…';$('mipsec').hidden=!s.mips;
+ try{const r=await build(it,s);if(g!==gen)return;last=r;
+  const pl=$('plevel'),keep=Math.min(+pl.value||0,r.mips-1);pl.innerHTML='';
+  for(let m=0;m<r.mips;m++)pl.add(new Option(`Level ${m} · ${Math.max(1,r.W>>m)}×${Math.max(1,r.H>>m)}`,m));pl.value=keep;
+  show(keep);drawBox();if(s.mips)tiles(r,it);
+  $('info').innerHTML=`${r.W}×${r.H} · ${r.fmt===13?(r.ck?'DXT1 (1-bit alpha)':'DXT1'):'DXT5'}${r.n>1?` · ${r.n} frames`:''}${r.mips>1?` · ${r.mips} mip levels`:''} · <span class="${r.vtf.length>s.limit?'bad':''}">${(r.vtf.length/1024).toFixed(1)} KB (${(100*r.vtf.length/s.limit)|0}% of limit${r.vtf.length>s.limit?' – over the limit':''})</span>`;
+  $('note').textContent=r.notes.join(' ')+(window.ImageDecoder?'':' Animated GIFs need Chrome/Edge; using first frame.')}
+ catch(e){$('info').textContent='Couldn’t read this image: '+e.message}}
+async function addFiles(fs){const n=items.length;for(const f of fs)if(f.type.startsWith('image/'))items.push({file:f,name:clean(f.name),ov:{},tf:{zoom:1,x:0,y:0,trim:false}});
+ if(items.length>n){renderList();pick(n)}}
+$('drop').onclick=()=>$('file').click();$('file').onchange=e=>{addFiles([...e.target.files]);e.target.value=''};
+['dragover','dragenter'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();$('drop').classList.add('on')}));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();$('drop').classList.remove('on')}));
+document.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
+const TF0={zoom:1,x:0,y:0,trim:false};
+function baseFrac(){const it=items[sel];if(!it||!it.frames||!last)return null;const f=it.frames[0],w=it.bx?it.bx.w:f.width,h=it.bx?it.bx.h:f.height,W=last.W,H=last.H,m=cfg().layout;
+ if(m==='stretch')return[1,1];const k=m==='crop'?Math.max(W/w,H/h):Math.min(W/w,H/h);return[w*k/W,h*k/H]}
+function rect(){const b=baseFrac();if(!b)return null;const t=items[sel].tf,w=b[0]*t.zoom,h=b[1]*t.zoom;return{l:.5+t.x/100-w/2,t:.5+t.y/100-h/2,w,h}}
+function drawBox(){const bx=$('tbox'),r=items[sel]&&rect();if(!r){bx.hidden=true;return}bx.hidden=false;Object.assign(bx.style,{left:r.l*100+'%',top:r.t*100+'%',width:r.w*100+'%',height:r.h*100+'%'})}
+function writeTf(it){$('tftrim').checked=!!it.tf.trim;drawBox()}
+$('tftrim').onchange=()=>{const it=items[sel];if(it){it.tf.trim=$('tftrim').checked;schedule()}};
+$('tfreset').onclick=()=>{const it=items[sel];if(it){it.tf={...TF0,trim:it.tf.trim};drawBox();schedule()}};
+$('tffill').onclick=()=>{const it=items[sel],b=baseFrac();if(!it||!b)return;it.tf.zoom=Math.min(10,Math.max(1/b[0],1/b[1]));it.tf.x=it.tf.y=0;drawBox();schedule()};
+(()=>{const cw=$('cw');let d=null,t0=0;
+ cw.onpointerdown=e=>{const it=items[sel],r=rect();if(!it||!r)return;cw.setPointerCapture(e.pointerId);
+  d={c:e.target.dataset&&e.target.dataset.c,x:e.clientX,y:e.clientY,R:cw.getBoundingClientRect(),z:it.tf.zoom,tx:it.tf.x,ty:it.tf.y,r};e.preventDefault()};
+ cw.onpointermove=e=>{if(!d)return;const it=items[sel];
+  if(d.c)Object.assign(it.tf,cornerScale(d.r,d.c,(e.clientX-d.R.left)/d.R.width,(e.clientY-d.R.top)/d.R.height,d.z));
+  else{let nx=d.tx+(e.clientX-d.x)/d.R.width*100,ny=d.ty+(e.clientY-d.y)/d.R.height*100;const T=2.5,sx=!e.altKey&&Math.abs(nx)<T,sy=!e.altKey&&Math.abs(ny)<T;
+   if(sx)nx=0;if(sy)ny=0;it.tf.x=nx;it.tf.y=ny;$('gv').hidden=!sx;$('gh').hidden=!sy}
+  drawBox();const n=Date.now();if(n-t0>250){t0=n;preview()}else schedule()};
+ cw.onpointerup=cw.onpointercancel=()=>{d=null;$('gv').hidden=$('gh').hidden=true}})();
+$('name').oninput=e=>{if(items[sel]){items[sel].name=clean(e.target.value)||'spray';renderList()}};
+['w','h','layout','fmt','mips','lim','auto'].forEach(id=>$(id).addEventListener('input',schedule));
+const save=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
+async function exportAll(zipMode){
+ if(!items.length)return alert('Add at least one image first.');
+ const s=cfg(),files=[],used=new Set(),btn=zipMode?$('zip'):$('go'),label=btn.textContent;$('go').disabled=$('zip').disabled=true;
+ try{for(const it of items){let n=it.name,k=2;while(used.has(n))n=`${it.name}_${k++}`;used.add(n);
+  btn.textContent=`Converting ${n}…`;const r=await build(it,s);
+  if(!zipMode){save(new Blob([r.vtf],{type:'application/octet-stream'}),n+'.vtf');await new Promise(r=>setTimeout(r,300));continue}
+  const base='materials/vgui/logos/',enc=new TextEncoder();
+  files.push({name:`${base}${n}.vtf`,data:r.vtf},{name:`${base}${n}.vmt`,data:enc.encode(vmt(n))})}
+  if(zipMode)save(zip(files),'img2vtf_sprays.zip')}
+ catch(e){alert('Conversion failed: '+e.message)}
+ $('go').disabled=$('zip').disabled=false;btn.textContent=label};
+$('go').onclick=()=>exportAll(false);$('zip').onclick=()=>exportAll(true);
+$('help').onclick=()=>{const h=$('helpbox');h.hidden=!h.hidden;$('help').setAttribute('aria-expanded',String(!h.hidden))};
+</script></body></html>
