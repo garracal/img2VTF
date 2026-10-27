@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/33995911/README.md)
 # img2VTF
 
 A free, in-browser tool for converting images and animated GIFs into Team Fortress 2 sprays (.vtf).
